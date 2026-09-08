@@ -36,6 +36,7 @@ import { FrontierChart } from "./FrontierChart";
 import { GhostBtn, Panel, Sparkline, Still } from "./primitives";
 import { STILLS } from "./stills";
 import { useGameSound } from "./useGameSound";
+import { SandboxLoader } from "./sandbox-load";
 
 const OperationsView = lazy(() => import("./OperationsView").then((module) => ({ default: module.OperationsView })));
 
@@ -55,8 +56,7 @@ export function ThresholdApp() {
   const [presetSeed, setPresetSeed] = useState<number | undefined>(undefined);
   const fileRef = useRef<HTMLInputElement>(null);
   const prevFocus = useRef<HTMLElement | null>(null);
-  const campaignGen = useRef(0);
-  const sandboxAbort = useRef<AbortController | null>(null);
+  const sandboxLoader = useRef(new SandboxLoader(fetch));
   const [sandboxBusy, setSandboxBusy] = useState(false);
   const [titleErr, setTitleErr] = useState<string | null>(null);
 
@@ -116,9 +116,7 @@ export function ThresholdApp() {
   }, []);
 
   function dropPendingSandbox() {
-    campaignGen.current += 1;
-    sandboxAbort.current?.abort();
-    sandboxAbort.current = null;
+    sandboxLoader.current.cancel();
     setSandboxBusy(false);
   }
 
@@ -165,42 +163,30 @@ export function ThresholdApp() {
   }
 
   function loadSandbox() {
-    const gen = ++campaignGen.current;
-    sandboxAbort.current?.abort();
-    const ac = new AbortController();
-    sandboxAbort.current = ac;
     setSandboxBusy(true);
     setTitleErr(null);
     setImportErr(null);
-    void fetch("/expansion-demo.json", { signal: ac.signal })
-      .then((res) => {
-        if (!res.ok) throw new Error("missing");
-        return res.text();
-      })
-      .then((text) => {
-        if (gen !== campaignGen.current) return;
-        const r = deserialize(text);
-        if (!r.ok) {
-          setTitleErr(r.reason);
-          setSandboxBusy(false);
-          return;
-        }
-        setImportErr(null);
-        setTitleErr(null);
-        setS(r.state);
-        setStarted(true);
-        setTab("OPERATIONS");
-        const wr = saveLocal(r.state);
-        if (!wr.ok) setToast(`${wr.reason} The run is loaded in memory — export a copy.`);
-        else setToast("Sandbox loaded — Q3 2024. Not an earned campaign.");
-        setSandboxBusy(false);
-      })
-      .catch((err: unknown) => {
-        if (gen !== campaignGen.current) return;
-        if (err && typeof err === "object" && "name" in err && err.name === "AbortError") return;
-        setTitleErr("The expansion sandbox could not be loaded.");
-        setSandboxBusy(false);
-      });
+    void sandboxLoader.current.load().then((result) => {
+      if (result.status === "ignored") return;
+      setSandboxBusy(false);
+      if (result.status === "error") {
+        setTitleErr(result.reason);
+        return;
+      }
+      const r = deserialize(result.text);
+      if (!r.ok) {
+        setTitleErr(r.reason);
+        return;
+      }
+      setImportErr(null);
+      setTitleErr(null);
+      setS(r.state);
+      setStarted(true);
+      setTab("OPERATIONS");
+      const wr = saveLocal(r.state);
+      if (!wr.ok) setToast(`${wr.reason} The run is loaded in memory — export a copy.`);
+      else setToast("Sandbox loaded — Q3 2024. Not an earned campaign.");
+    });
   }
 
   useEffect(() => {

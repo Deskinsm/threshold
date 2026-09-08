@@ -30,7 +30,7 @@ npm run build
 
 Auth and database stay off. Campaigns are versioned local saves; export/import JSON if you want a portable run.
 
-CI on every push and pull request: clean install, tests, typecheck, render check, production build.
+CI runs on pull requests and on pushes to `main`: clean install, tests, typecheck, render check, production build.
 
 ## What to try
 
