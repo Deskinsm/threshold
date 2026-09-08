@@ -47,6 +47,71 @@ function checkRival(r: unknown, i: number): string | null {
   return null;
 }
 
+function checkEach(list: unknown[], check: (item: unknown, i: number) => string | null): string | null {
+  for (let i = 0; i < list.length; i++) {
+    const err = check(list[i], i);
+    if (err) return err;
+  }
+  return null;
+}
+
+function checkOrder(o: unknown, i: number): string | null {
+  if (!isObj(o)) return `Order ${i} is not an object.`;
+  if (o.kind !== "chips" && o.kind !== "power" && o.kind !== "fabric") return `Order ${i} has an unknown kind.`;
+  if (!isNum(o.qty) || o.qty < 0) return `Order ${i} has a bad quantity.`;
+  if (!Number.isInteger(o.arrive)) return `Order ${i} has a bad arrival.`;
+  if (!isStr(o.label)) return `Order ${i} is missing a label.`;
+  if (!isNum(o.unitCost) || o.unitCost < 0) return `Order ${i} has a bad unit cost.`;
+  if (o.gen !== undefined && !isNum(o.gen)) return `Order ${i} has a bad generation.`;
+  if (o.site !== undefined && !SITES.some((x) => x.id === o.site)) return `Order ${i} has an unknown campus.`;
+  return null;
+}
+
+function checkConstruction(c: unknown, i: number): string | null {
+  if (!isObj(c)) return `Construction ${i} is not an object.`;
+  if (!isStr(c.id) || !c.id) return `Construction ${i} is missing an id.`;
+  if (!isStr(c.ventureId) || !c.ventureId) return `Construction ${i} is missing a venture.`;
+  if (!Number.isInteger(c.arrive) || (c.arrive as number) < 0) return `Construction ${i} has a bad arrival.`;
+  if (!isStr(c.label)) return `Construction ${i} is missing a label.`;
+  return null;
+}
+
+function checkEvent(e: unknown, i: number): string | null {
+  if (!isObj(e)) return `Wire entry ${i} is not an object.`;
+  if (!isNum(e.id)) return `Wire entry ${i} is missing an id.`;
+  if (!Number.isInteger(e.t)) return `Wire entry ${i} has a bad quarter.`;
+  if (!isStr(e.type) || !e.type) return `Wire entry ${i} is missing a type.`;
+  if (!isStr(e.text)) return `Wire entry ${i} is missing text.`;
+  return null;
+}
+
+function checkHistory(h: unknown, i: number): string | null {
+  if (!isObj(h)) return `History ${i} is not an object.`;
+  for (const k of ["t", "cap", "deployed", "nw", "cash", "china"] as const) {
+    if (!isNum(h[k])) return `History ${i} is missing ${k}.`;
+  }
+  if (!isArr(h.rivals) || !(h.rivals as unknown[]).every(isNum)) return `History ${i} rivals are corrupt.`;
+  if (!isStr(h.bottleneck)) return `History ${i} is missing a bottleneck.`;
+  return null;
+}
+
+function checkPaper(p: unknown, i: number): string | null {
+  if (!isObj(p)) return `Paper ${i} is not an object.`;
+  if (!isStr(p.id) || !p.id) return `Paper ${i} is missing an id.`;
+  if (!Number.isInteger(p.at)) return `Paper ${i} has a bad quarter.`;
+  if (!isNum(p.algo)) return `Paper ${i} is missing an algorithmic factor.`;
+  if (typeof p.diffused !== "boolean") return `Paper ${i} is missing a diffusion flag.`;
+  return null;
+}
+
+function checkRelease(r: unknown, i: number): string | null {
+  if (!isObj(r)) return `Release ${i} is not an object.`;
+  if (!isNum(r.cap)) return `Release ${i} is missing capability.`;
+  if (r.mode !== "limited" && r.mode !== "broad") return `Release ${i} has an unknown mode.`;
+  if (!Number.isInteger(r.at)) return `Release ${i} has a bad quarter.`;
+  return null;
+}
+
 /** Full current-schema check. Called after migrate. Rejects sparse objects that would crash derive(). */
 export function validateState(raw: unknown): { ok: true; state: GameState } | { ok: false; reason: string } {
   if (!isObj(raw)) return fail("Save is not an object.");
@@ -80,6 +145,7 @@ export function validateState(raw: unknown): { ok: true; state: GameState } | { 
     return fail("Market record is incomplete.");
   }
   if (!isObj(s.flags)) return fail("Flags record is incomplete.");
+  if (Object.values(s.flags).some((v) => !isNum(v))) return fail("Flags record is corrupt.");
   if (!isObj(s.longestBottleneck) || !isStr(s.longestBottleneck.kind) || !isNum(s.longestBottleneck.quarters)) {
     return fail("Bottleneck record is incomplete.");
   }
@@ -94,12 +160,35 @@ export function validateState(raw: unknown): { ok: true; state: GameState } | { 
   if (!validateExpansion(s.expansion, s.ventures)) return fail("Expansion record is corrupt.");
   if (!Array.isArray(s.seen) || !s.seen.every(isStr)) return fail("Seen list is corrupt.");
   if (!Array.isArray(s.orders)) return fail("Order book is missing.");
-  if (s.orders.some((o) => !isObj(o) || !["chips", "power", "fabric"].includes(o.kind) || !isNum(o.qty) || o.qty < 0 || !Number.isInteger(o.arrive) || (o.site !== undefined && !SITES.some((x) => x.id === o.site)))) return fail("Order book is corrupt.");
+  {
+    const err = checkEach(s.orders, checkOrder);
+    if (err) return fail(err);
+  }
   if (!Array.isArray(s.construction)) return fail("Construction list is missing.");
+  {
+    const err = checkEach(s.construction, checkConstruction);
+    if (err) return fail(err);
+  }
   if (!Array.isArray(s.papers)) return fail("Paper list is missing.");
+  {
+    const err = checkEach(s.papers, checkPaper);
+    if (err) return fail(err);
+  }
   if (!Array.isArray(s.releases)) return fail("Release ledger is missing.");
+  {
+    const err = checkEach(s.releases, checkRelease);
+    if (err) return fail(err);
+  }
   if (!Array.isArray(s.events)) return fail("Wire is missing.");
+  {
+    const err = checkEach(s.events, checkEvent);
+    if (err) return fail(err);
+  }
   if (!Array.isArray(s.history)) return fail("History is missing.");
+  {
+    const err = checkEach(s.history, checkHistory);
+    if (err) return fail(err);
+  }
 
   if (!Array.isArray(s.rivals) || s.rivals.length !== 4) return fail("Save is missing the four named labs.");
   for (let i = 0; i < s.rivals.length; i++) {

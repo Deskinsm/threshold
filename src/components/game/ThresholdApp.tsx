@@ -36,6 +36,7 @@ import { FrontierChart } from "./FrontierChart";
 import { GhostBtn, Panel, Sparkline, Still } from "./primitives";
 import { STILLS } from "./stills";
 import { useGameSound } from "./useGameSound";
+import { SandboxLoader } from "./sandbox-load";
 
 const OperationsView = lazy(() => import("./OperationsView").then((module) => ({ default: module.OperationsView })));
 
@@ -55,6 +56,9 @@ export function ThresholdApp() {
   const [presetSeed, setPresetSeed] = useState<number | undefined>(undefined);
   const fileRef = useRef<HTMLInputElement>(null);
   const prevFocus = useRef<HTMLElement | null>(null);
+  const sandboxLoader = useRef(new SandboxLoader(fetch));
+  const [sandboxBusy, setSandboxBusy] = useState(false);
+  const [titleErr, setTitleErr] = useState<string | null>(null);
 
   useEffect(() => {
     setHasSave(hasLocalSave());
@@ -111,7 +115,15 @@ export function ThresholdApp() {
     });
   }, []);
 
+  function dropPendingSandbox() {
+    sandboxLoader.current.cancel();
+    setSandboxBusy(false);
+  }
+
   function begin(seed?: number) {
+    dropPendingSandbox();
+    setTitleErr(null);
+    setImportErr(null);
     const next = initState({ background, seed: seed ?? randomSeed() });
     setS(next);
     setStarted(true);
@@ -121,9 +133,11 @@ export function ThresholdApp() {
   }
 
   function cont() {
+    dropPendingSandbox();
+    setTitleErr(null);
     const loaded = loadLocal();
     if (!loaded.ok) {
-      setToast(loaded.reason);
+      setTitleErr(loaded.reason);
       return;
     }
     setS(loaded.state);
@@ -131,12 +145,15 @@ export function ThresholdApp() {
   }
 
   function doImport(text: string, nextTab?: (typeof TABS)[number], toastMsg?: string) {
+    dropPendingSandbox();
     const r = deserialize(text);
     if (!r.ok) {
-      setImportErr(r.reason);
+      if (started) setImportErr(r.reason);
+      else setTitleErr(r.reason);
       return;
     }
     setImportErr(null);
+    setTitleErr(null);
     setS(r.state);
     setStarted(true);
     if (nextTab) setTab(nextTab);
@@ -146,13 +163,30 @@ export function ThresholdApp() {
   }
 
   function loadSandbox() {
-    void fetch("/expansion-demo.json")
-      .then((res) => {
-        if (!res.ok) throw new Error("missing");
-        return res.text();
-      })
-      .then((text) => doImport(text, "OPERATIONS", "Sandbox loaded — Q3 2024. Not an earned campaign."))
-      .catch(() => setToast("The expansion sandbox could not be loaded."));
+    setSandboxBusy(true);
+    setTitleErr(null);
+    setImportErr(null);
+    void sandboxLoader.current.load().then((result) => {
+      if (result.status === "ignored") return;
+      setSandboxBusy(false);
+      if (result.status === "error") {
+        setTitleErr(result.reason);
+        return;
+      }
+      const r = deserialize(result.text);
+      if (!r.ok) {
+        setTitleErr(r.reason);
+        return;
+      }
+      setImportErr(null);
+      setTitleErr(null);
+      setS(r.state);
+      setStarted(true);
+      setTab("OPERATIONS");
+      const wr = saveLocal(r.state);
+      if (!wr.ok) setToast(`${wr.reason} The run is loaded in memory — export a copy.`);
+      else setToast("Sandbox loaded — Q3 2024. Not an earned campaign.");
+    });
   }
 
   useEffect(() => {
@@ -177,6 +211,12 @@ export function ThresholdApp() {
           onBegin={(seed) => begin(seed)}
           onContinue={cont}
           onSandbox={loadSandbox}
+          onCancelSandbox={() => {
+            dropPendingSandbox();
+            setTitleErr(null);
+          }}
+          sandboxBusy={sandboxBusy}
+          error={titleErr}
           presetSeed={presetSeed}
         />
       </>
