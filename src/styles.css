@@ -1,0 +1,269 @@
+@import "tailwindcss";
+@import "./operations.css";
+
+@theme {
+  --font-sans: "IBM Plex Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  --color-bg: #0e1014;
+  --color-bg-elev: #161a21;
+  --color-bg-sunken: #0a0c10;
+  --color-panel: #161a21;
+  --color-panel-2: #1c212b;
+  --color-line: #2a3140;
+  --color-line-strong: #3a4254;
+  --color-ink: #e4dfd4;
+  --color-ink-muted: #8b909c;
+  --color-ink-faint: #5c6270;
+  --color-chip: #4fa8a0;
+  --color-chip-dim: #2d6b66;
+  --color-power: #d99b34;
+  --color-power-dim: #8a6220;
+  --color-money: #7e9e58;
+  --color-money-dim: #4e6634;
+  --color-risk: #c45c40;
+  --color-abroad: #8a7bb8;
+  --color-cream: #c9c5bb;
+
+  --radius-xs: 2px;
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 18px;
+
+  --text-micro: 0.6875rem;
+  --text-2xs: 0.625rem;
+
+  --shadow-panel: 0 12px 40px color-mix(in oklab, #000 35%, transparent);
+  --shadow-border: 0 0 0 1px color-mix(in oklab, #e4dfd4 8%, transparent);
+  --shadow-border-hover: 0 0 0 1px color-mix(in oklab, #e4dfd4 14%, transparent);
+
+  --ease-smooth-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --motion-quick: 150ms;
+  --motion-fast: 250ms;
+  --motion-emphasis: 500ms;
+}
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    background: var(--color-bg);
+    color: var(--color-ink);
+  }
+  body {
+    min-height: 100dvh;
+    background: var(--color-bg);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+  }
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+  h1, h2, h3 {
+    text-wrap: balance;
+  }
+  p {
+    text-wrap: pretty;
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-chip);
+    outline-offset: 2px;
+  }
+}
+
+@layer utilities {
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  .stagger-in > * {
+    animation: none !important;
+    opacity: 1 !important;
+    filter: none !important;
+    transform: none !important;
+  }
+}
+
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(10px); filter: blur(4px); }
+  to { opacity: 1; transform: translateY(0); filter: blur(0); }
+}
+
+@keyframes grain {
+  0%, 100% { transform: translate(0, 0); }
+  25% { transform: translate(-2%, 1%); }
+  50% { transform: translate(1%, -1%); }
+  75% { transform: translate(-1%, -2%); }
+}
+
+@keyframes draw-line {
+  from { stroke-dashoffset: 1400; }
+  to { stroke-dashoffset: 0; }
+}
+
+@keyframes fill-area {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes pulse-threshold {
+  0%, 100% { opacity: 0.45; }
+  50% { opacity: 0.9; }
+}
+
+@keyframes scan {
+  0% { transform: translateY(-100%); }
+  100% { transform: translateY(100%); }
+}
+
+.stagger-in > * {
+  animation: fade-up var(--motion-emphasis) var(--ease-smooth-out) both;
+}
+.stagger-in > *:nth-child(1) { animation-delay: 40ms; }
+.stagger-in > *:nth-child(2) { animation-delay: 80ms; }
+.stagger-in > *:nth-child(3) { animation-delay: 120ms; }
+.stagger-in > *:nth-child(4) { animation-delay: 160ms; }
+.stagger-in > *:nth-child(5) { animation-delay: 200ms; }
+.stagger-in > *:nth-child(6) { animation-delay: 240ms; }
+.stagger-in > *:nth-child(7) { animation-delay: 280ms; }
+.stagger-in > *:nth-child(8) { animation-delay: 320ms; }
+
+.grain {
+  pointer-events: none;
+  position: fixed;
+  inset: -20%;
+  z-index: 50;
+  opacity: 0.045;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='140' height='140'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+  animation: grain 8s steps(4) infinite;
+}
+
+.scanline {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  opacity: 0.07;
+}
+.scanline::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent 2px,
+    color-mix(in oklab, #000 55%, transparent) 3px
+  );
+}
+
+.grid-bg {
+  background-image:
+    linear-gradient(to right, color-mix(in oklab, var(--color-line) 45%, transparent) 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in oklab, var(--color-line) 45%, transparent) 1px, transparent 1px);
+  background-size: 56px 56px;
+  mask-image: radial-gradient(ellipse at 70% 40%, black 10%, transparent 72%);
+}
+
+.vignette {
+  background: radial-gradient(ellipse at 30% 40%, transparent 20%, color-mix(in oklab, var(--color-bg) 88%, transparent) 78%);
+}
+
+.tank-grid {
+  background-image: linear-gradient(to top, color-mix(in oklab, var(--color-line) 70%, transparent) 1px, transparent 1px);
+  background-size: 100% 20%;
+}
+
+input[type="range"] {
+  appearance: none;
+  height: 4px;
+  background: var(--color-line);
+  border-radius: 99px;
+}
+input[type="range"]::-webkit-slider-thumb {
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 99px;
+  background: var(--color-chip);
+  border: 2px solid var(--color-bg);
+  cursor: pointer;
+}
+
+.end-q {
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--color-power) 55%, transparent);
+  background: linear-gradient(to top, color-mix(in oklab, var(--color-power) 16%, transparent), color-mix(in oklab, var(--color-power) 6%, transparent));
+}
+.end-q:hover {
+  background: linear-gradient(to top, color-mix(in oklab, var(--color-power) 24%, transparent), color-mix(in oklab, var(--color-power) 8%, transparent));
+}
+
+@keyframes tank-rise {
+  from { transform: scaleY(0.15); opacity: 0.4; }
+  to { transform: scaleY(1); opacity: 1; }
+}
+
+@keyframes hatch-drift {
+  from { background-position: 0 0; }
+  to { background-position: 12px 12px; }
+}
+
+@keyframes modal-in {
+  from { opacity: 0; transform: translateY(8px) scale(0.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes bar-in {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+
+.tank-fill {
+  transform-origin: bottom;
+  animation: tank-rise 700ms var(--ease-smooth-out) both;
+}
+
+.tank-hatch {
+  background-image: repeating-linear-gradient(
+    -45deg,
+    color-mix(in oklab, var(--color-risk) 35%, transparent) 0 2px,
+    transparent 2px 8px
+  );
+  animation: hatch-drift 8s linear infinite;
+}
+
+.modal-in {
+  animation: modal-in var(--motion-fast) var(--ease-smooth-out) both;
+}
+
+.race-fill {
+  transform-origin: left;
+  animation: bar-in 600ms var(--ease-smooth-out) both;
+}
+
+.live-glow {
+  text-shadow: 0 0 18px color-mix(in oklab, var(--color-chip) 45%, transparent);
+}
+
+.assess-track {
+  height: 6px;
+  border-radius: 99px;
+  background: color-mix(in oklab, var(--color-line) 80%, transparent);
+  overflow: hidden;
+}
+.assess-fill {
+  height: 100%;
+  transform-origin: left;
+  animation: bar-in 800ms var(--ease-smooth-out) both;
+}
+

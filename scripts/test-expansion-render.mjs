@@ -1,0 +1,32 @@
+import { createServer } from 'vite';
+import react from '@vitejs/plugin-react';
+import { createElement } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+import assert from 'node:assert/strict';
+const server = await createServer({ configFile: false, plugins: [react()], resolve: { alias: { '@': new URL('../src', import.meta.url).pathname } }, server: { middlewareMode: true, hmr: false }, appType: 'custom' });
+try {
+ const { CampusNetwork, VentureSpecializations, PublicRelations } = await server.ssrLoadModule('/src/components/game/ExpansionPanels.tsx');
+ const { OperationsView } = await server.ssrLoadModule('/src/components/game/OperationsView.tsx');
+ const { VenturesView, WorldView } = await server.ssrLoadModule('/src/components/game/TabsViews.tsx');
+ const { initState } = await server.ssrLoadModule('/src/game/init.ts');
+ const { derive } = await server.ssrLoadModule('/src/game/economy.ts');
+ const { applyAction } = await server.ssrLoadModule('/src/game/actions.ts');
+ let s = initState({ seed: 42, background: 'infra' }); s.cash = 1e12; s.actions = 20;
+ const props = () => ({ s, d: derive(s), dispatch() {}, onTab() {}, onEnd() {}, onConcept() {} });
+ let html = renderToStaticMarkup(createElement(CampusNetwork, props()));
+ assert.equal((html.match(/class="campus-node /g) || []).length, 4);
+ assert.match(html, /No intercampus links yet/); assert.match(html, /Expand power/);
+ html = renderToStaticMarkup(createElement(VentureSpecializations, { ...props(), venture: 'colo' }));
+ assert.match(html, /Enterprise leases/); assert.match(html, /Cooling engineering/);
+ s = applyAction(s, { type: 'specializeVenture', id: 'colo-leases' }).state;
+ html = renderToStaticMarkup(createElement(VentureSpecializations, { ...props(), venture: 'colo' }));
+ assert.match(html, /SPECIALIZATION · PERMANENT/); assert.doesNotMatch(html, /Cooling engineering/);
+ s.mwBySite.south = 5; s.mwSecured += 5;
+ s = applyAction(s, { type: 'connectCampuses', from: 'east', to: 'south' }).state;
+ html = renderToStaticMarkup(createElement(CampusNetwork, props())); assert.match(html, /campus-line building/);
+ s.t = 3; html = renderToStaticMarkup(createElement(CampusNetwork, props())); assert.match(html, /campus-line online/);
+ s = applyAction(s, { type: 'runPR', kind: 'community' }).state;
+ html = renderToStaticMarkup(createElement(PublicRelations, props())); assert.match(html, /through the start of/);
+ for (const view of [OperationsView, VenturesView, WorldView]) assert.ok(renderToStaticMarkup(createElement(view, props())).length > 1000);
+ console.log('PASS: four selectable campuses; venture choices and selected state; queued and online links; PR active state; Operations, Ventures and World render.');
+} finally { await server.close(); }

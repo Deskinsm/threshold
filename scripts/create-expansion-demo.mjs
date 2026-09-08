@@ -1,0 +1,26 @@
+// A deliberately generous fixture for exploring the expansion; not an earned campaign.
+import { mkdir, writeFile } from 'node:fs/promises';
+import { initState, initAlloc, initMarket } from '../src/game/init.ts';
+import { idx } from '../src/game/data.ts';
+import { derive, cumEffOf, maxActions, revenueOf, opexOf, netWorthOf } from '../src/game/economy.ts';
+import { serialize, deserialize } from '../src/game/save.ts';
+import { pushEvent } from '../src/game/log.ts';
+const s = initState({ background: 'infra', seed: 42 });
+s.t = idx('2024Q3'); s.cash = 10e9; s.chips = 50000; s.fabric = 18000; s.fleet = 3; s.researchers = 180;
+s.mwBySite = { east: 21.2, south: 22, onsite: 5, abroad: 8 };
+s.mwSecured = Object.values(s.mwBySite).reduce((n, x) => n + x, 0);
+s.ventures = ['colo', 'cloud', 'fiber', 'silicon']; s.actions = maxActions(s);
+s.cumEff = cumEffOf(48); s.deployedCap = 44; s.deployMode = 'broad'; s.lastReleaseAt = s.t;
+s.lastBroadCap = 44; s.lastBroadAt = s.t; s.releases = [{ cap: 44, at: s.t, mode: 'broad' }];
+s.alloc = initAlloc(s.t, false); s.market = initMarket(s.t); s.seenChecklist = true;
+s.risk = 15; s.preparedness = 25; s.trust = 60; s.reg = 12;
+const d = derive(s); s.revenue = revenueOf(s, d); s.lastRevenue = s.revenue; s.opex = opexOf(s, d);
+s.events = []; s.eventSeq = 0;
+pushEvent(s, 'world', 'EXPANSION DEMO: a synthetic sandbox with four campuses, four ventures and $10B. This is a test fixture, not a played or balanced campaign.');
+s.history = [{ t: s.t, cap: d.researchCap, deployed: s.deployedCap, nw: netWorthOf(s, d), cash: s.cash, china: s.chinaCap, rivals: d.rivalCaps, bottleneck: d.bottleneck }];
+const json = serialize(s); const checked = deserialize(json);
+if (!checked.ok) throw new Error(checked.reason);
+const directory = new URL('../examples/', import.meta.url);
+await mkdir(directory, { recursive: true });
+await writeFile(new URL('expansion-demo.json', directory), json);
+console.log('Created validated synthetic expansion demo save.');

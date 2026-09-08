@@ -1,0 +1,23 @@
+node_modules/
+.vercel/
+.tanstack/
+dist/
+.output/
+*.log
+.DS_Store
+.env
+.env.*
+.project_id
+.node_modules.lock
+
+# Grok Build sandbox — keep the auth flag, drop the rest
+.grok/*
+!.grok/app-env.json
+AGENTS.md
+AGENTS.project.md
+
+# Internal handoffs, generated art, QA captures
+attachments/
+artifacts/
+screenshots/
+public/__grok/
