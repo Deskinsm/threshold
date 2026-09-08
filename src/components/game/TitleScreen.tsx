@@ -9,6 +9,9 @@ export function TitleScreen({
   onBegin,
   onContinue,
   onSandbox,
+  onCancelSandbox,
+  sandboxBusy = false,
+  error,
   presetSeed,
 }: {
   hasSave: boolean;
@@ -17,6 +20,9 @@ export function TitleScreen({
   onBegin: (seed: number) => void;
   onContinue: () => void;
   onSandbox?: () => void;
+  onCancelSandbox?: () => void;
+  sandboxBusy?: boolean;
+  error?: string | null;
   presetSeed?: number;
 }) {
   const [seedText, setSeedText] = useState(() => (presetSeed !== undefined ? formatSeed(presetSeed) : ""));
@@ -73,17 +79,17 @@ export function TitleScreen({
             </p>
 
             <div className="mt-7 flex flex-wrap gap-3">
-              <GhostBtn filled tone="chip" className="min-h-12 px-7 py-3 text-sm" onClick={requestBegin}>
+              <GhostBtn filled tone="chip" className="min-h-12 px-7 py-3 text-sm" disabled={sandboxBusy} onClick={requestBegin}>
                 BEGIN — Q4 2012
               </GhostBtn>
               {hasSave && (
-                <GhostBtn tone="ink" className="min-h-12 px-6 py-3 text-sm" onClick={onContinue}>
+                <GhostBtn tone="ink" className="min-h-12 px-6 py-3 text-sm" disabled={sandboxBusy} onClick={onContinue}>
                   CONTINUE
                 </GhostBtn>
               )}
               {onSandbox && (
-                <GhostBtn tone="power" className="min-h-12 px-6 py-3 text-sm" onClick={requestSandbox}>
-                  SANDBOX — Q3 2024
+                <GhostBtn tone="power" className="min-h-12 px-6 py-3 text-sm" disabled={sandboxBusy} onClick={requestSandbox}>
+                  {sandboxBusy ? "OPENING SANDBOX…" : "SANDBOX — Q3 2024"}
                 </GhostBtn>
               )}
             </div>
@@ -93,7 +99,26 @@ export function TitleScreen({
               </p>
             )}
 
-            {pending && hasSave && (
+            {sandboxBusy && (
+              <div className="mt-3 rounded-md border border-power/50 bg-panel/90 p-3">
+                <p className="text-sm leading-relaxed text-cream">Loading the expansion sandbox…</p>
+                {onCancelSandbox && (
+                  <div className="mt-3">
+                    <GhostBtn tone="ink" onClick={onCancelSandbox}>
+                      Cancel
+                    </GhostBtn>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {error && (
+              <p role="alert" className="mt-3 max-w-xl font-mono text-xs leading-relaxed text-risk">
+                {error}
+              </p>
+            )}
+
+            {pending && hasSave && !sandboxBusy && (
               <div className="mt-3 rounded-md border border-power/50 bg-panel/90 p-3">
                 <p className="text-sm leading-relaxed text-cream">
                   {pending === "sandbox"

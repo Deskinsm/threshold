@@ -13,20 +13,24 @@ Saves live in the browser (`localStorage`). No account required.
 
 ## Run it
 
+Node 22 and npm 10.9+. The lockfile is generated with that pair; `npm ci` is the clean install.
+
 ```bash
-npm install
+npm ci
 npm run dev
 ```
 
 Then open the URL Vite prints (binds `0.0.0.0:8080`).
 
 ```bash
-npm run test:game    # engine + operations + expansion
+npm test             # engine + operations + expansion + save validation
 npm run typecheck
 npm run build
 ```
 
 Auth and database stay off. Campaigns are versioned local saves; export/import JSON if you want a portable run.
+
+CI on every push and pull request: clean install, tests, typecheck, render check, production build.
 
 ## What to try
 
