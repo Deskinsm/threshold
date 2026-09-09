@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   type Action,
   type BackgroundId,
@@ -37,8 +37,8 @@ import { GhostBtn, Panel, Sparkline, Still } from "./primitives";
 import { STILLS } from "./stills";
 import { useGameSound } from "./useGameSound";
 import { SandboxLoader } from "./sandbox-load";
-
-const OperationsView = lazy(() => import("./OperationsView").then((module) => ({ default: module.OperationsView })));
+import { OperationsView } from "./OperationsView";
+import { ViewErrorBoundary } from "./GameErrorBoundary";
 
 const TABS = ["COMMAND", "OPERATIONS", "SUPPLY", "LAB", "VENTURES", "WORLD", "WIRE"] as const;
 
@@ -350,19 +350,19 @@ export function ThresholdApp() {
           </div>
         )}
 
-        {tab === "COMMAND" && (
-          <CommandView s={s} d={d} f={f} dispatch={dispatch} onEnd={endQuarter} onConcept={(id) => { prevFocus.current = document.activeElement as HTMLElement; setConcept(id); }} onTab={(t) => setTab(t as (typeof TABS)[number])} />
-        )}
-        {tab === "OPERATIONS" && (
-          <Suspense fallback={<p className="py-8 text-ink-muted" role="status">Opening Operations…</p>}>
+        <ViewErrorBoundary name={tab}>
+          {tab === "COMMAND" && (
+            <CommandView s={s} d={d} f={f} dispatch={dispatch} onEnd={endQuarter} onConcept={(id) => { prevFocus.current = document.activeElement as HTMLElement; setConcept(id); }} onTab={(t) => setTab(t as (typeof TABS)[number])} />
+          )}
+          {tab === "OPERATIONS" && (
             <OperationsView key={s.seed} s={s} dispatch={dispatch} onTab={(t) => setTab(t as (typeof TABS)[number])} onEnd={endQuarter} />
-          </Suspense>
-        )}
-        {tab === "SUPPLY" && <SupplyView s={s} dispatch={dispatch} onConcept={setConcept} />}
-        {tab === "LAB" && <LabView s={s} dispatch={dispatch} onConcept={setConcept} />}
-        {tab === "VENTURES" && <VenturesView s={s} d={d} dispatch={dispatch} onConcept={setConcept} />}
-        {tab === "WORLD" && <WorldView s={s} d={d} dispatch={dispatch} onConcept={setConcept} />}
-        {tab === "WIRE" && <WireView s={s} filter={wireFilter} onFilter={setWireFilter} />}
+          )}
+          {tab === "SUPPLY" && <SupplyView s={s} dispatch={dispatch} onConcept={setConcept} />}
+          {tab === "LAB" && <LabView s={s} dispatch={dispatch} onConcept={setConcept} />}
+          {tab === "VENTURES" && <VenturesView s={s} d={d} dispatch={dispatch} onConcept={setConcept} />}
+          {tab === "WORLD" && <WorldView s={s} d={d} dispatch={dispatch} onConcept={setConcept} />}
+          {tab === "WIRE" && <WireView s={s} filter={wireFilter} onFilter={setWireFilter} />}
+        </ViewErrorBoundary>
       </main>
 
       <div className="fixed inset-x-0 bottom-0 z-20 border-t border-line bg-panel p-3 lg:hidden">
