@@ -787,3 +787,17 @@ describe("v3: named researchers, siting, the record", () => {
     assert.equal(out.mwBySite.east, out.mwSecured);
   });
 });
+
+describe("seed hygiene", () => {
+  it("initState refuses a non-numeric seed instead of poisoning the state", () => {
+    assert.throws(() => initState({ seed: {} as unknown as number }), /seed must be a finite number/);
+    assert.throws(() => initState({ seed: Number.NaN }), /seed must be a finite number/);
+  });
+  it("a fresh state is structured-cloneable (the forecast depends on it)", () => {
+    const s = initState({ seed: 11 });
+    assert.doesNotThrow(() => structuredClone(s));
+  });
+  it("clone names a leaked function instead of surfacing structuredClone's message", () => {
+    assert.throws(() => clone({ fn: () => {} }), /cannot be cloned/);
+  });
+});

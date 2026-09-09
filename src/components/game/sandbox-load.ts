@@ -44,7 +44,8 @@ export class SandboxLoader {
     const ac = new AbortController();
     this.abort = ac;
     try {
-      const res = await this.fetchImpl(this.url, { signal: ac.signal });
+      const fetchImpl = this.fetchImpl;
+      const res = await fetchImpl(this.url, { signal: ac.signal });
       if (gen !== this.gen) return { status: "ignored" };
       if (!res.ok) return { status: "error", reason: SANDBOX_LOAD_ERROR };
       const text = await res.text();
