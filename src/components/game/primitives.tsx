@@ -29,7 +29,7 @@ export function Panel({
             <button
               type="button"
               aria-label={`About ${title}`}
-              onClick={hint}
+              onClick={() => hint()}
               className="px-1 text-chip hover:text-ink"
             >
               [?]
@@ -83,7 +83,7 @@ export function GhostBtn({
       title={title}
       disabled={disabled}
       aria-pressed={pressed}
-      onClick={onClick}
+      onClick={onClick ? () => onClick() : undefined}
       className={cn(
         "rounded-sm border px-3 py-2 font-mono text-xs tracking-wide transition-[transform,background-color,border-color] duration-150 ease-out active:not-disabled:scale-[0.96]",
         disabled ? "cursor-not-allowed border-line text-ink-faint opacity-50" : filled ? solid : outline,
@@ -121,7 +121,7 @@ export function SmallBuy({
       disabled={!ok}
       title={!ok ? reason : undefined}
       aria-disabled={!ok}
-      onClick={onClick}
+      onClick={() => onClick()}
       className={cn(
         "min-h-11 rounded-sm border px-3 py-2 text-left font-mono text-xs transition-colors duration-150",
         ok ? color + " hover:bg-panel-2" : "cursor-not-allowed border-line text-ink-faint opacity-50",
@@ -157,7 +157,7 @@ export function ActRow({
         <div className="font-mono text-xs text-ink">
           {label}
           {info && (
-            <button type="button" aria-label={`About ${label}`} onClick={info} className="px-1 text-chip">
+            <button type="button" aria-label={`About ${label}`} onClick={() => info()} className="px-1 text-chip">
               [?]
             </button>
           )}
@@ -169,7 +169,7 @@ export function ActRow({
         type="button"
         disabled={!ok}
         title={!ok ? reason : undefined}
-        onClick={onClick}
+        onClick={() => onClick()}
         className={cn(
           "min-h-11 whitespace-nowrap rounded-sm border px-3 py-2 font-mono text-micro transition-[transform,background-color] duration-150 active:not-disabled:scale-[0.96]",
           ok ? "border-power text-power hover:bg-power/10" : "cursor-not-allowed border-line text-ink-faint opacity-50",

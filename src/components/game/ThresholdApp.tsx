@@ -56,7 +56,7 @@ export function ThresholdApp() {
   const [presetSeed, setPresetSeed] = useState<number | undefined>(undefined);
   const fileRef = useRef<HTMLInputElement>(null);
   const prevFocus = useRef<HTMLElement | null>(null);
-  const sandboxLoader = useRef(new SandboxLoader(fetch));
+  const sandboxLoader = useRef(new SandboxLoader((url, init) => fetch(url, init)));
   const [sandboxBusy, setSandboxBusy] = useState(false);
   const [titleErr, setTitleErr] = useState<string | null>(null);
 
@@ -124,7 +124,8 @@ export function ThresholdApp() {
     dropPendingSandbox();
     setTitleErr(null);
     setImportErr(null);
-    const next = initState({ background, seed: seed ?? randomSeed() });
+    const chosen = typeof seed === "number" && Number.isFinite(seed) ? seed : randomSeed();
+    const next = initState({ background, seed: chosen });
     setS(next);
     setStarted(true);
     setTab("COMMAND");
@@ -482,7 +483,7 @@ export function ThresholdApp() {
         <Modal title="Start over?" onClose={() => setConfirmNew(false)}>
           <p className="text-sm text-cream">This replaces the current run. Export first if you want it.</p>
           <div className="mt-4 flex gap-2">
-            <GhostBtn tone="risk" onClick={begin}>
+            <GhostBtn tone="risk" onClick={() => begin()}>
               New game
             </GhostBtn>
             <GhostBtn tone="ink" onClick={() => setConfirmNew(false)}>

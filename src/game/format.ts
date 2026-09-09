@@ -33,7 +33,13 @@ export function pct(n: number, digits = 1) {
 }
 
 export function clone<T>(x: T): T {
-  return structuredClone(x);
+  try {
+    return structuredClone(x);
+  } catch (err) {
+    throw new Error(
+      `Game state contains a value that cannot be cloned (a function, DOM node or event leaked into state). ${err instanceof Error ? err.message.split("\n")[0] : String(err)}`,
+    );
+  }
 }
 
 export function finite(n: number) {

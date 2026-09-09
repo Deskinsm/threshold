@@ -46,7 +46,11 @@ export function initMarket(t: number) {
 }
 
 export function initState(opts?: { seed?: number; background?: BackgroundId }): GameState {
-  const seed = opts?.seed ?? DEFAULT_SEED;
+  const rawSeed = opts?.seed ?? DEFAULT_SEED;
+  if (typeof rawSeed !== "number" || !Number.isFinite(rawSeed)) {
+    throw new TypeError(`initState: seed must be a finite number, got ${Object.prototype.toString.call(rawSeed)}`);
+  }
+  const seed = rawSeed >>> 0;
   const background = opts?.background ?? "research";
   const s: GameState = {
     version: SAVE_VERSION,

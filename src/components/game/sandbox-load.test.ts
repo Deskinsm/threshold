@@ -82,3 +82,14 @@ test("abort after cancel is ignored, not treated as a download failure", async (
   loader.cancel();
   assert.deepEqual(await pending, { status: "ignored" });
 });
+
+test("fetch is invoked without the loader as `this` (browsers throw Illegal invocation otherwise)", async () => {
+  let receiver: unknown = "unset";
+  const fetchImpl = function (this: unknown) {
+    receiver = this;
+    return Promise.resolve({ ok: true, text: () => Promise.resolve("{}") });
+  } as unknown as SandboxFetch;
+  const loader = new SandboxLoader(fetchImpl);
+  await loader.load();
+  assert.notEqual(receiver, loader);
+});
