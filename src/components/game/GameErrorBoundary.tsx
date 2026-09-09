@@ -1,6 +1,7 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
 import { clearLocal, hasLocalSave } from "@/game";
 import { GhostBtn } from "./primitives";
+import { isTransientShellError } from "./shell-error";
 
 type Props = { children: ReactNode };
 type State = { error: Error | null; info: string };
@@ -37,11 +38,16 @@ export class GameErrorBoundary extends Component<Props, State> {
   render() {
     if (!this.state.error) return this.props.children;
     const saved = hasLocalSave();
+    const transient = isTransientShellError(this.state.error);
     return (
       <main className="mx-auto flex min-h-dvh max-w-2xl flex-col justify-center gap-4 px-6 py-10 text-ink">
-        <div className="font-mono text-micro tracking-widest text-risk">THRESHOLD — UNRECOVERABLE RENDER ERROR</div>
+        <div className="font-mono text-micro tracking-widest text-risk">
+          {transient ? "THRESHOLD — THIS SECTION DID NOT LOAD" : "THRESHOLD — UNRECOVERABLE RENDER ERROR"}
+        </div>
         <p className="text-sm leading-relaxed text-cream">
-          The interface hit an error it could not draw its way out of.{" "}
+          {transient
+            ? "A floor of the interface failed to load. The run is intact."
+            : "The interface hit an error it could not draw its way out of."}{" "}
           {saved ? "Your last committed quarter is still saved; reloading will offer Continue." : "No save was found."}
         </p>
         <pre className="max-h-48 overflow-auto rounded-sm border border-line bg-panel p-3 font-mono text-2xs text-ink-muted">
@@ -66,6 +72,57 @@ export class GameErrorBoundary extends Component<Props, State> {
           The error is also stored under localStorage key threshold.lastCrash for a bug report.
         </p>
       </main>
+    );
+  }
+}
+
+type ViewProps = { name: string; children: ReactNode };
+type ViewState = { error: Error | null };
+
+/** A thrown tab must not unmount the rest of the run. Switching sections clears it. */
+export class ViewErrorBoundary extends Component<ViewProps, ViewState> {
+  state: ViewState = { error: null };
+
+  static getDerivedStateFromError(error: Error): Partial<ViewState> {
+    return { error };
+  }
+
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    try {
+      localStorage.setItem(
+        "threshold.lastCrash",
+        JSON.stringify({
+          at: new Date().toISOString(),
+          view: this.props.name,
+          message: error.message,
+          stack: error.stack,
+          component: info.componentStack,
+        }),
+      );
+    } catch {
+      /* ignore */
+    }
+  }
+
+  componentDidUpdate(prev: ViewProps) {
+    if (prev.name !== this.props.name && this.state.error) this.setState({ error: null });
+  }
+
+  render() {
+    if (!this.state.error) return this.props.children;
+    return (
+      <section className="rounded-lg border border-line bg-panel p-4" role="alert">
+        <div className="font-mono text-micro tracking-widest text-risk">{this.props.name} could not be drawn</div>
+        <p className="mt-2 text-sm leading-relaxed text-cream">
+          The rest of the run is intact. Switch sections, or try this one again.
+        </p>
+        <pre className="mt-3 max-h-32 overflow-auto rounded-sm border border-line bg-bg p-3 font-mono text-2xs text-ink-muted">
+          {this.state.error.message}
+        </pre>
+        <div className="mt-3">
+          <GhostBtn onClick={() => this.setState({ error: null })}>Try again</GhostBtn>
+        </div>
+      </section>
     );
   }
 }
