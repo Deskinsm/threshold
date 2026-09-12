@@ -2,7 +2,6 @@ import { CampusNetwork } from "./ExpansionPanels";
 import type { Action } from "@/game";
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { Activity, Cpu, Network, Zap, ArrowUpRight, PackageCheck, FlaskConical, Radio } from "lucide-react";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
 import { arriveLabel, num, mw, dateOf, SITE_NAMES, type GameState, type Resource } from "@/game";
 import { Panel, GhostBtn } from "./primitives";
 import { capacityTimeline, fleetSegments } from "./operations-model";
@@ -17,6 +16,87 @@ const SEGMENT_COLORS = {
   paused: "var(--color-risk)",
   idle: "var(--color-line-strong)",
 };
+
+type CapacityPoint = { t: number; live: number; idle: number; date: string };
+
+/** 1, 2, 5 × a power of ten — the readable step sizes. */
+function niceStep(v: number) {
+  if (v <= 0) return 1;
+  const pow = Math.pow(10, Math.floor(Math.log10(v)));
+  const n = v / pow;
+  return (n <= 1 ? 1 : n <= 2 ? 2 : n <= 5 ? 5 : 10) * pow;
+}
+
+/** Axis top and tick values. Aims for ~5 ticks; never a fractional step, since these are chip counts. */
+function axis(maxValue: number) {
+  const m = Math.max(1, maxValue);
+  const step = Math.max(1, niceStep(m / 5));
+  const top = Math.ceil(m / step) * step;
+  const ticks: number[] = [];
+  for (let v = 0; v <= top + 1e-9; v += step) ticks.push(v);
+  return { top, ticks };
+}
+
+/**
+ * Stacked capacity bars, hand-rolled to keep recharts out of the bundle.
+ * Same idiom as FrontierChart: fixed viewBox, no measurement, no animation.
+ */
+function CapacityChart({ points, markerT }: { points: CapacityPoint[]; markerT: number }) {
+  const W = 640;
+  const H = 220;
+  const padL = 54;
+  const padR = 8;
+  const padT = 16;
+  const padB = 26;
+  const plotW = W - padL - padR;
+  const plotH = H - padT - padB;
+
+  const { top: max, ticks } = axis(Math.max(...points.map((p) => p.live + p.idle), 0));
+  const y = (v: number) => padT + plotH - (v / max) * plotH;
+  const band = plotW / Math.max(1, points.length);
+  const barW = Math.min(46, band * 0.62);
+  const cx = (i: number) => padL + band * i + band / 2;
+
+  const labelEvery = Math.ceil((points.length * 60) / plotW);
+  const marker = points.findIndex((p) => p.t === markerT);
+
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} className="block w-full" aria-hidden="true" focusable="false">
+      {ticks.map((v, i) => (
+        <g key={i}>
+          <line x1={padL} y1={y(v)} x2={W - padR} y2={y(v)} stroke="var(--color-line)" strokeWidth={1} />
+          <text x={padL - 8} y={y(v) + 4} textAnchor="end" fontSize="12" fill="var(--color-ink-muted)" fontFamily="var(--font-mono)">
+            {num(v)}
+          </text>
+        </g>
+      ))}
+
+      {points.map((c, i) => {
+        const liveH = (c.live / max) * plotH;
+        const idleH = (c.idle / max) * plotH;
+        return (
+          <g key={c.t}>
+            <title>{`${c.date} — ${num(c.live)} live, ${num(c.idle)} idle`}</title>
+            <rect x={cx(i) - barW / 2} y={y(c.live)} width={barW} height={Math.max(0, liveH)} fill="var(--color-chip)" />
+            <rect x={cx(i) - barW / 2} y={y(c.live + c.idle)} width={barW} height={Math.max(0, idleH)} fill="var(--color-line-strong)" />
+          </g>
+        );
+      })}
+
+      {marker >= 0 && (
+        <line x1={cx(marker)} y1={padT} x2={cx(marker)} y2={padT + plotH} stroke="var(--color-power)" strokeDasharray="4 4" strokeWidth={1} />
+      )}
+
+      {points.map((c, i) =>
+        i % labelEvery === 0 || i === points.length - 1 ? (
+          <text key={c.t} x={cx(i)} y={H - 8} textAnchor="middle" fontSize="12" fill="var(--color-ink-muted)" fontFamily="var(--font-mono)">
+            {c.date}
+          </text>
+        ) : null,
+      )}
+    </svg>
+  );
+}
 
 export function OperationsView({ s, dispatch, onTab, onEnd }: { s: GameState; dispatch: (a: Action) => void; onTab: (tab: string) => void; onEnd: () => void }) {
   const timeline = useMemo(() => capacityTimeline(s), [s]);
@@ -248,20 +328,7 @@ export function OperationsView({ s, dispatch, onTab, onEnd }: { s: GameState; di
             aria-valuetext={dateOf(point.t).label}
           />
           <div className="ops-chart" role="img" aria-label="Capacity timeline. Exact values are available by changing the quarter slider above.">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chart} margin={{ top: 16, right: 0, left: 0, bottom: 8 }}>
-                <XAxis dataKey="date" tick={{ fill: "var(--color-ink-muted)", fontSize: 12 }} tickLine={false} axisLine={false} minTickGap={24} />
-                <YAxis width={54} tickFormatter={(v) => num(Number(v))} tick={{ fill: "var(--color-ink-muted)", fontSize: 12 }} tickLine={false} axisLine={false} />
-                <Tooltip
-                  contentStyle={{ backgroundColor: "var(--color-panel)", borderColor: "var(--color-line)", color: "var(--color-ink)" }}
-                  formatter={(v) => num(Number(v))}
-                  cursor={{ fill: "var(--color-panel-2)" }}
-                />
-                <Bar dataKey="live" name="Live chips" stackId="fleet" fill="var(--color-chip)" isAnimationActive={false} />
-                <Bar dataKey="idle" name="Idle / contained chips" stackId="fleet" fill="var(--color-line-strong)" isAnimationActive={false} />
-                <ReferenceLine x={dateOf(point.t).label} stroke="var(--color-power)" strokeDasharray="4 4" />
-              </BarChart>
-            </ResponsiveContainer>
+            <CapacityChart points={chart} markerT={point.t} />
           </div>
           <p className="ops-note">Committed orders only. Retirement continues even with an empty pipeline. Previewing does not advance the game.</p>
         </Panel>
