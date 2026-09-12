@@ -1,5 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import { initState } from "../../game/init.ts";
 import { simulateQuarter } from "../../game/resolve.ts";
 import { derive } from "../../game/economy.ts";
@@ -42,4 +43,9 @@ test("fleet allocation conserves chips, including containment and zero capacity"
     assert.equal(parts[3]!.value, 40);
   }
   assert.ok(fleetSegments(0, 0, 0, 0.7).every((p) => p.value === 0));
+});
+
+test("the capacity chart does not pull a charting library into the bundle", async () => {
+  const src = await readFile(new URL("./OperationsView.tsx", import.meta.url), "utf8");
+  assert.doesNotMatch(src, /from "recharts"/);
 });

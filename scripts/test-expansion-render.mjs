@@ -27,6 +27,21 @@ try {
  s.t = 3; html = renderToStaticMarkup(createElement(CampusNetwork, props())); assert.match(html, /campus-line online/);
  s = applyAction(s, { type: 'runPR', kind: 'community' }).state;
  html = renderToStaticMarkup(createElement(PublicRelations, props())); assert.match(html, /through the start of/);
- for (const view of [OperationsView, VenturesView, WorldView]) assert.ok(renderToStaticMarkup(createElement(view, props())).length > 1000);
- console.log('PASS: four selectable campuses; venture choices and selected state; queued and online links; PR active state; Operations, Ventures and World render.');
+ const ops = renderToStaticMarkup(createElement(OperationsView, props()));
+ assert.match(ops, /class="ops-chart"/);
+ assert.match(ops, /var\(--color-chip\)/);
+ assert.match(ops, /stroke-dasharray="4 4"/);
+ assert.doesNotMatch(ops, /recharts/);
+ assert.doesNotMatch(ops, /NaN/);
+ const empty = initState({ seed: 1 });
+ empty.chips = 0;
+ const opsZero = renderToStaticMarkup(createElement(OperationsView, { ...props(), s: empty }));
+ assert.doesNotMatch(opsZero, /NaN/);
+ const late = initState({ seed: 1 });
+ late.t = 72;
+ const opsLast = renderToStaticMarkup(createElement(OperationsView, { ...props(), s: late }));
+ assert.doesNotMatch(opsLast, /NaN/);
+ assert.match(opsLast, /class="ops-chart"/);
+ for (const view of [VenturesView, WorldView]) assert.ok(renderToStaticMarkup(createElement(view, props())).length > 1000);
+ console.log('PASS: four selectable campuses; venture choices and selected state; queued and online links; PR active state; Operations chart is SVG; Ventures and World render.');
 } finally { await server.close(); }
